@@ -1,0 +1,25 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: #14181d; color: #e6e9ed;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+header { padding: 14px 24px; border-bottom: 1px solid #2a3038; }
+header h1 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+header p  { margin: 2px 0 0; font-size: .85rem; color: #8f9aa6; }
+
+main { display: flex; gap: 16px; padding: 16px 24px; align-items: flex-start; }
+canvas {
+  flex: 1 1 auto; min-width: 0; width: 100%; max-width: 1200px;
+  aspect-ratio: 1200 / 720; background: #000; border-radius: 6px;
+}
+aside { flex: 0 0 240px; display: flex; flex-direction: column; gap: 14px; }
+section { background: #1b2027; border: 1px solid #2a3038; border-radius: 6px; padding: 12px 14px; }
+h2 { margin: 0 0 8px; font-size: .9rem; font-weight: 600; color: #b9c2cc; }
+label { display: block; margin: 6px 0; font-size: .9rem; cursor: pointer; }
+.readout { margin: 0; font-family: Consolas, monospace; }
+.hint { margin: 8px 0 0; font-size: .78rem; color: #8f9aa6; line-height: 1.4; }
+.legend { list-style: none; margin: 0; padding: 0; font-size: .85rem; }
+.legend li { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.legend i { width: 18px; height: 12px; border-radius: 2px; border: 1px solid #0006; }
+
+@media (max-width: 900px) { main { flex-direction: column; } aside { flex-basis: auto; width: 100%; } }
