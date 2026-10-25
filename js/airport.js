@@ -1,121 +1,171 @@
-/* aircraft.js - Milestone 2: the Aircraft class and its graphics.
- *
- * Every aircraft is modelled ONCE in a LOCAL coordinate system:
- *   - origin (0,0) = centre of the aircraft
- *   - nose points along +x, length is about 64 units (x from -32 to +32)
- *   - wings extend along +y / -y
- * To place it in the airport we apply a transformation: scale -> rotate -> translate.
- * HEADING: degrees, 0 = east, 90 = south, 180 = west, 270 = north
- * (clockwise, because the canvas y axis points down). */
+/* airport.js - draws the whole scene. Painter's algorithm: items drawn
+ * later appear on top, so the order inside drawAirport() matters. */
 
-const AIRCRAFT_TYPES = {
-  REGIONAL: { label: 'Regional', span: 46, scale: 0.55, body: '#eef4ff', accent: '#2f80ed', engines: [0.45] },
-  NARROW:   { label: 'Narrow-body', span: 54, scale: 0.70, body: '#ffffff', accent: '#e8590c', engines: [0.45] },
-  WIDE:     { label: 'Wide-body', span: 50, scale: 0.85, body: '#f4f1e8', accent: '#2f9e44', engines: [0.35, 0.7] }
-};
+const C = CFG.COLORS;
 
-class Aircraft {
-  constructor(id, type, x, y, heading, state = 'STOPPED') {
-    this.id = id;
-    this.type = type;
-    this.x = x;                 // position (translation)
-    this.y = y;
-    this.heading = heading;     // rotation in degrees
-    this.scale = AIRCRAFT_TYPES[type].scale;   // uniform scaling factor
-    this.state = state;         // used by the simulation in later milestones
-    this.speed = 0;             // stationary for now
-  }
+function drawAirport(ctx, opts) {
+  drawGround(ctx);
+  if (opts.zones) drawZones(ctx);
+  drawApron(ctx);
+  drawTaxiways(ctx);           // under the runways so connectors tuck beneath them
+  RUNWAYS.forEach(r => drawRunway(ctx, r));
+  drawBuildings(ctx);
+  drawStands(ctx);
+  if (opts.labels) drawLabels(ctx);
+  if (opts.grid) drawGrid(ctx);
+}
 
-  get info() { return AIRCRAFT_TYPES[this.type]; }
+/* ---- Ground and boundary ---- */
+function drawGround(ctx) {
+  Draw.rect(ctx, 0, 0, CFG.W, CFG.H, C.outside);
+  Draw.polygon(ctx, BOUNDARY, C.grass);
 
-  /* Draw the aircraft: a shadow first, then the body.
-   * The shadow is the SAME shape drawn again with a small translation,
-   * so one model gives two objects through two transformations. */
-  draw(ctx, opts) {
-    Draw.withTransform(ctx, this.x + 3, this.y + 4, this.heading, this.scale, this.scale,
-      () => this.drawShape(ctx, 'rgba(0,0,0,0.28)'));
+  // Mowing stripes, clipped to the boundary polygon.
+  ctx.save();
+  ctx.beginPath();
+  BOUNDARY.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+  ctx.closePath(); ctx.clip();
+  for (let y = 20; y < CFG.H; y += 40) Draw.rect(ctx, 0, y, CFG.W, 20, C.grassAlt);
+  ctx.restore();
 
-    Draw.withTransform(ctx, this.x, this.y, this.heading, this.scale, this.scale, () => {
-      this.drawShape(ctx, null);
-      if (opts.bounds || this.selected) this.drawBounds(ctx);
-    });
+  Draw.polygon(ctx, BOUNDARY, null, C.fence, 3, [10, 6]);   // perimeter fence
+}
 
-    if (opts.ids) this.drawLabel(ctx);
-  }
+function drawZones(ctx) {
+  ZONES.forEach(z => {
+    Draw.rect(ctx, z.x, z.y, z.w, z.h, `rgba(${z.color},0.13)`);
+    ctx.setLineDash([6, 5]); ctx.lineWidth = 1.5; ctx.strokeStyle = `rgba(${z.color},0.8)`;
+    ctx.strokeRect(z.x, z.y, z.w, z.h); ctx.setLineDash([]);
+  });
+}
 
-  // The aircraft model, in local coordinates. 'flat' = single colour (shadow).
-  drawShape(ctx, flat) {
-    const t = this.info, hs = t.span / 2;
-    const ink = '#3b4654';
-    const body = flat || t.body, wing = flat || '#cdd6e3', accent = flat || t.accent;
-    const line = flat ? null : ink;
-    ctx.lineJoin = 'round';
+/* ---- Taxiways, apron ---- */
+function drawApron(ctx) {
+  Draw.rect(ctx, APRON.x, APRON.y, APRON.w, APRON.h, C.apron, C.outline);
+}
 
-    // Wings and tailplane are drawn for +y, then REFLECTED to -y using
-    // scale(1, -1). A scale with a negative factor is a mirror image.
-    const half = () => {
-      Draw.polygon(ctx, [[8, 3.5], [-6, hs], [-14, hs], [-6, 3.5]], wing, line, 0.8);              // wing
-      Draw.polygon(ctx, [[-24, 2], [-29, hs * 0.3], [-34, hs * 0.3], [-31, 2]], wing, line, 0.8);   // tailplane
-      t.engines.forEach(f => {                                                                      // engines
-        const ey = 3.5 + (hs - 3.5) * f, ex = 8 - 14 * f;
-        Draw.rect(ctx, ex - 7, ey - 2, 10, 4, flat || '#7d8896');
+function drawTaxiways(ctx) {
+  TAXIWAYS.forEach(t => Draw.polyline(ctx, t.pts, C.taxiway, t.w));
+  TAXIWAYS.forEach(t => Draw.polyline(ctx, t.pts, C.yellow, 1.5, [10, 8]));  // centreline
+}
+
+/* ---- Runway ----
+ * Everything is drawn in the runway's LOCAL frame: origin at its centre,
+ * +x along its length. One withTransform() call (translate + rotate)
+ * places the same drawing code at any position and angle, which is how
+ * the vertical runway R3 reuses the code of the horizontal runways. */
+function drawRunway(ctx, r) {
+  Draw.withTransform(ctx, r.cx, r.cy, r.angle, 1, 1, () => {
+    const L = r.len, W = r.w, h = L / 2;
+
+    Draw.rect(ctx, -h, -W / 2, L, W, C.runway);                       // surface
+    Draw.line(ctx, -h, -W / 2 + 3, h, -W / 2 + 3, C.marking, 1.5);    // edge lines
+    Draw.line(ctx, -h,  W / 2 - 3, h,  W / 2 - 3, C.marking, 1.5);
+    Draw.line(ctx, -h + 110, 0, h - 110, 0, C.marking, 3, [28, 20]);  // dashed centreline
+
+    [-1, 1].forEach(side => {                 // side -1 = start end, +1 = far end
+      const edge = side * h;                  // x of this threshold
+      const inward = -side;                   // direction pointing into the runway
+
+      for (let i = 0; i < 8; i++) {           // threshold stripes
+        const y = -W / 2 + 6 + i * ((W - 12 - 3) / 7);
+        Draw.rect(ctx, inward > 0 ? edge + 8 : edge - 8 - 26, y, 26, 3, C.marking);
+      }
+      [0.12, 0.17].forEach(f => {             // touchdown-zone bars
+        const x = edge + inward * L * f;
+        Draw.rect(ctx, x - 11, -13, 22, 3, C.marking);
+        Draw.rect(ctx, x - 11,  10, 22, 3, C.marking);
       });
-    };
-    half();
-    Draw.withTransform(ctx, 0, 0, 0, 1, -1, half);
+      const ax = edge + inward * L * 0.24;    // aiming-point block
+      Draw.rect(ctx, ax - 22, -14, 44, 5, C.marking);
+      Draw.rect(ctx, ax - 22,   9, 44, 5, C.marking);
 
-    // Fuselage: straight sides plus curved nose (quadratic curves).
-    ctx.beginPath();
-    ctx.moveTo(-32, -1.5); ctx.lineTo(-18, -4); ctx.lineTo(18, -4);
-    ctx.quadraticCurveTo(32, -3, 33, 0);
-    ctx.quadraticCurveTo(32, 3, 18, 4);
-    ctx.lineTo(-18, 4); ctx.lineTo(-32, 1.5); ctx.closePath();
-    ctx.fillStyle = body; ctx.fill();
-    if (line) { ctx.strokeStyle = line; ctx.lineWidth = 0.8; ctx.stroke(); }
+      // Runway number: rotated 90 degrees so it reads upright for a pilot
+      // approaching from this end.  (+90 deg at start end, -90 at far end)
+      const label = side < 0 ? r.start : r.end;
+      Draw.withTransform(ctx, edge + inward * 62, 0, side < 0 ? 90 : -90, 1, 1, () =>
+        Draw.text(ctx, label, 0, 0, { size: 19, bold: true, color: C.marking }));
+    });
+  });
+}
 
-    Draw.polygon(ctx, [[-22, -3.4], [-32, -1.5], [-32, 1.5], [-22, 3.4]], accent);               // tail livery
-    if (!flat) Draw.polygon(ctx, [[22, -2.4], [27, -1.6], [27, 1.6], [22, 2.4]], '#2b3a4a');      // cockpit
+/* ---- Buildings ---- */
+function drawBuildings(ctx) {
+  // Terminal: jet bridges first, then the building polygon on top.
+  STANDS.forEach(s => Draw.line(ctx, s.x, 575, s.x, 540, '#7a828c', 8));
+  Draw.polygon(ctx, TERMINAL, C.building, C.outline, 2);
+  Draw.polygon(ctx, [[285, 612], [310, 590], [770, 590], [795, 612], [795, 655], [285, 655]], C.roof);
+
+  Draw.polygon(ctx, HANGAR, '#c4c9d0', C.outline, 2);          // hangar (5-vertex polygon)
+  Draw.line(ctx, 940, 468, 940, 540, '#8e9bab', 2);            // roof ridge
+
+  // Control tower: base square + ring + glass cab (circles).
+  Draw.rect(ctx, TOWER.x - 18, TOWER.y - 18, 36, 36, C.building, C.outline);
+  Draw.circle(ctx, TOWER.x, TOWER.y, 12, '#8e9bab', C.outline, 2);
+  Draw.circle(ctx, TOWER.x, TOWER.y, 5, '#5ab0e6');
+}
+
+function drawStands(ctx) {
+  STANDS.forEach(s => {
+    Draw.rect(ctx, s.x - 34, 440, 68, 100, null, 'rgba(255,255,255,0.55)');
+    Draw.line(ctx, s.x - 12, s.y, s.x + 12, s.y, C.yellow, 2);   // stop mark
+  });
+}
+
+/* ---- Labels and grid ---- */
+function drawLabels(ctx) {
+  ZONES.forEach(z => Draw.text(ctx, z.name, z.x + 8, z.y + 11,
+    { size: 11, bold: true, align: 'left', color: `rgba(${z.color},1)` }));
+
+  Draw.text(ctx, 'AIRPORT BOUNDARY', 62, 34, { size: 11, align: 'left', color: '#e8efe2' });
+
+  RUNWAYS.forEach(r => {
+    const y = r.angle ? r.cy + r.len / 2 + 26 : r.cy - r.w / 2 - 8;
+    Draw.text(ctx, 'RWY ' + r.name, r.angle ? r.cx : r.cx, y, { size: 12, bold: true });
+  });
+
+  TAXIWAYS.filter(t => t.tag).forEach(t => {
+    const [x, y] = t.badge;
+    Draw.rect(ctx, x - 10, y - 10, 20, 20, '#111', C.yellow);
+    Draw.text(ctx, t.tag, x, y, { size: 13, bold: true, color: C.yellow });
+  });
+
+  STANDS.forEach(s => Draw.text(ctx, s.id, s.x, 527, { size: 11, bold: true, color: '#20252b' }));
+  Draw.text(ctx, 'TERMINAL', 540, 632, { size: 18, bold: true, color: '#33404f' });
+  Draw.text(ctx, 'HANGAR', 940, 515, { size: 11, bold: true, color: '#33404f' });
+  Draw.text(ctx, 'TOWER', TOWER.x, TOWER.y + 32, { size: 11, bold: true });
+}
+
+// Grid every 50 units; major lines and numbers every 100.
+function drawGrid(ctx) {
+  for (let x = 0; x <= CFG.W; x += 50) {
+    const major = x % 100 === 0;
+    Draw.line(ctx, x, 0, x, CFG.H, major ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.15)', 1);
+    if (major) Draw.text(ctx, x, x + 2, 8, { size: 10, align: 'left' });
   }
-
-  // Oriented bounding box (a rectangle in local space, so it rotates with the aircraft).
-  drawBounds(ctx) {
-    ctx.lineWidth = this.selected ? 1.6 : 1;
-    ctx.setLineDash([3, 2]);
-    Draw.rect(ctx, -34, -this.info.span / 2 - 1, 68, this.info.span + 2, null, this.selected ? '#ffd43b' : '#ff6b6b');
-    ctx.setLineDash([]);
-  }
-
-  // The ID is drawn in WORLD space (not rotated) so the text always stays readable.
-  drawLabel(ctx) {
-    const r = Math.max(34, this.info.span / 2) * this.scale + 10;
-    const w = this.id.length * 7 + 10, y = this.y - r;
-    Draw.rect(ctx, this.x - w / 2, y - 8, w, 16, this.selected ? '#ffd43b' : 'rgba(15,20,26,0.8)');
-    Draw.text(ctx, this.id, this.x, y, { size: 11, bold: true, color: this.selected ? '#111' : '#fff' });
-  }
-
-  /* HIT TEST using the INVERSE transformation.
-   * Instead of rotating the aircraft to the mouse, we move the mouse point
-   * into the aircraft's local space: undo translate, undo rotate, undo scale.
-   * Then a simple axis-aligned rectangle test is enough. */
-  contains(px, py) {
-    const a = -this.heading * Math.PI / 180;
-    const dx = px - this.x, dy = py - this.y;
-    const lx = (dx * Math.cos(a) - dy * Math.sin(a)) / this.scale;
-    const ly = (dx * Math.sin(a) + dy * Math.cos(a)) / this.scale;
-    return Math.abs(lx) <= 34 && Math.abs(ly) <= Math.max(this.info.span / 2, 6);
+  for (let y = 0; y <= CFG.H; y += 50) {
+    const major = y % 100 === 0;
+    Draw.line(ctx, 0, y, CFG.W, y, major ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.15)', 1);
+    if (major && y) Draw.text(ctx, y, 3, y - 7, { size: 10, align: 'left' });
   }
 }
 
-// Initial demo fleet: different types, positions and orientations (all stationary).
-function createFleet() {
-  return [
-    new Aircraft('AI101', 'NARROW',   300,  485, 90,  'PARKED'),
-    new Aircraft('6E214', 'REGIONAL', 540,  485, 90,  'PARKED'),
-    new Aircraft('EK507', 'WIDE',     780,  485, 90,  'PARKED'),
-    new Aircraft('UK833', 'NARROW',   330,  150, 0,   'HOLDING'),
-    new Aircraft('LH764', 'WIDE',     150,  205, 0,   'LINED UP'),
-    new Aircraft('AI302', 'REGIONAL', 1100, 120, 90,  'LINED UP'),
-    new Aircraft('BA118', 'NARROW',   720,  290, 180, 'STOPPED'),
-    new Aircraft('QR572', 'NARROW',   500,  345, 45,  'STOPPED')   // 45 degree test aircraft
-  ];
+/* ---- Runway status overlay (Milestone 3) ----
+ * Green = AVAILABLE, amber = RESERVED, red = OCCUPIED.  Drawn in the runway's
+ * local frame, so the same code works for horizontal and vertical runways. */
+const STATUS_COLOR = { AVAILABLE: '80,220,120', RESERVED: '255,190,50', OCCUPIED: '255,80,80' };
+
+function drawRunwayStatus(ctx, manager) {
+  manager.runways.forEach(rw => {
+    const col = STATUS_COLOR[rw.status];
+    Draw.withTransform(ctx, rw.x, rw.y, rw.direction, 1, 1, () => {
+      Draw.rect(ctx, -rw.length / 2, -rw.width / 2, rw.length, rw.width, `rgba(${col},0.22)`);
+      ctx.lineWidth = 2;
+      Draw.rect(ctx, -rw.length / 2, -rw.width / 2, rw.length, rw.width, null, `rgba(${col},0.95)`);
+    });
+    const horiz = rw.direction === 0;
+    const x = horiz ? rw.x + 175 : rw.x, y = horiz ? rw.y - rw.width / 2 - 8 : rw.y + rw.length / 2 + 44;
+    const txt = rw.status + (rw.holder ? '  ' + rw.holder.id : '');
+    Draw.text(ctx, txt, x, y, { size: 12, bold: true, color: `rgb(${col})` });
+  });
 }

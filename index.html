@@ -3,41 +3,78 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>2D Airport Simulation - Milestone 2</title>
+  <title>2D Airport Simulation - Milestone 3</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
     <h1>Airport Runway Management Simulation</h1>
-    <p>Milestone 2: aircraft graphics (stationary aircraft)</p>
+    <p>Milestone 3: aircraft animation and runway management</p>
   </header>
 
   <main>
-    <canvas id="scene" aria-label="Top-down airport layout with aircraft"></canvas>
+    <canvas id="scene" aria-label="Top-down airport simulation"></canvas>
 
     <aside>
       <section>
-        <h2>Aircraft</h2>
         <div class="row">
-          <select id="newType">
-            <option value="REGIONAL">Regional</option>
-            <option value="NARROW" selected>Narrow-body</option>
-            <option value="WIDE">Wide-body</option>
-          </select>
-          <button id="btnAdd">Add</button>
-          <button id="btnReset" class="ghost">Reset</button>
+          <button id="modeSim" class="tab on">Simulation</button>
+          <button id="modeSb" class="tab">Sandbox (M2)</button>
         </div>
-        <p class="hint">Click an aircraft to select it. Drag to move it.</p>
       </section>
 
-      <section id="selPanel">
+      <!-- ===== Simulation controls ===== -->
+      <div id="simUI">
+        <section>
+          <h2>Controls</h2>
+          <div class="row">
+            <button id="btnPlay">Pause</button>
+            <button id="btnArr">+ Arrival</button>
+            <button id="btnDep">+ Departure</button>
+          </div>
+          <label class="slider">Speed <b id="spdVal">1x</b>
+            <input type="range" id="spd" min="0.5" max="4" step="0.5" value="1"></label>
+          <label><input type="checkbox" id="optAuto" checked> Auto-generate arrivals</label>
+          <button id="btnRestart" class="ghost wide">Restart simulation</button>
+        </section>
+
+        <section>
+          <h2>Runway status</h2>
+          <table id="rwyTable"></table>
+          <p class="hint" id="stats"></p>
+        </section>
+
+        <section>
+          <h2>Event log</h2>
+          <ul id="log"></ul>
+        </section>
+      </div>
+
+      <!-- ===== Milestone 2 sandbox controls ===== -->
+      <div id="sbUI" hidden>
+        <section>
+          <h2>Aircraft (sandbox)</h2>
+          <div class="row">
+            <select id="newType">
+              <option value="REGIONAL">Regional</option>
+              <option value="NARROW" selected>Narrow-body</option>
+              <option value="WIDE">Wide-body</option>
+            </select>
+            <button id="btnAdd">Add</button>
+            <button id="btnSbReset" class="ghost">Reset</button>
+          </div>
+          <p class="hint">Click to select, drag to move, use sliders to rotate and scale.</p>
+        </section>
+      </div>
+
+      <section>
         <h2>Selected: <span id="selId">none</span></h2>
+        <p class="readout" id="selInfo"></p>
         <div id="selControls" hidden>
           <label class="slider">Heading <b id="hdgVal"></b>
             <input type="range" id="hdg" min="0" max="359" step="1"></label>
           <label class="slider">Scale <b id="sclVal"></b>
             <input type="range" id="scl" min="0.4" max="1.6" step="0.05"></label>
-          <p class="readout" id="selPos"></p>
           <button id="btnDelete" class="danger">Delete aircraft</button>
         </div>
       </section>
@@ -53,7 +90,7 @@
       </section>
 
       <section>
-        <h2>Fleet</h2>
+        <h2>Aircraft</h2>
         <table id="fleet"></table>
       </section>
     </aside>
@@ -63,6 +100,10 @@
   <script src="js/draw.js"></script>
   <script src="js/airport.js"></script>
   <script src="js/aircraft.js"></script>
+  <script src="js/path.js"></script>
+  <script src="js/network.js"></script>
+  <script src="js/runwayManager.js"></script>
+  <script src="js/simulation.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

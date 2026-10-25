@@ -46,3 +46,18 @@ button.danger { margin-top: 8px; width: 100%; color: #ff8787; }
 canvas.hover { cursor: grab; }
 canvas.drag { cursor: grabbing; }
 aside { max-height: calc(100vh - 90px); overflow-y: auto; }
+
+/* ---- Milestone 3 additions ---- */
+aside { flex-basis: 290px; }
+button.tab { flex: 1; background: transparent; }
+button.tab.on { background: #3a3320; border-color: #ffd43b; color: #ffd43b; }
+button.wide { width: 100%; margin-top: 6px; }
+#rwyTable { width: 100%; font-size: .8rem; border-collapse: collapse; }
+#rwyTable td { padding: 4px 3px; border-top: 1px solid #2a3038; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+.AVAILABLE { background: #50dc78; } .RESERVED { background: #ffbe32; } .OCCUPIED { background: #ff5050; }
+#log { list-style: none; margin: 0; padding: 0; max-height: 190px; overflow-y: auto; font-size: .75rem; line-height: 1.45; }
+#log li { border-top: 1px solid #232a33; padding: 2px 0; color: #b9c2cc; }
+#log li b { color: #8f9aa6; font-weight: 500; margin-right: 6px; font-family: Consolas, monospace; }
+#log li.warn { color: #ff8787; }
+[hidden] { display: none !important; }

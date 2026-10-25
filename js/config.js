@@ -68,3 +68,8 @@ const APRON    = { x: 230, y: 415, w: 620, h: 145 };
 const TERMINAL = [[260, 600], [300, 575], [780, 575], [820, 600], [820, 670], [260, 670]];
 const HANGAR   = [[880, 540], [880, 492], [940, 468], [1000, 492], [1000, 540]];
 const TOWER    = { x: 150, y: 520 };
+
+// Milestone 3: two bypass taxiways so that traffic never has to cross a runway.
+//  G (east) links the end of B down to A;  W (west) links the start of A up to B.
+TAXIWAYS.push({ tag: 'G', w: 18, pts: [[1000, 150], [1040, 150], [1040, 290]], badge: [1040, 220] });
+TAXIWAYS.push({ tag: 'W', w: 18, pts: [[100, 150], [45, 150], [45, 290], [100, 290]], badge: [45, 220] });
