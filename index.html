@@ -3,41 +3,58 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>2D Airport Simulation - Milestone 1</title>
+  <title>2D Airport Simulation - Milestone 2</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
     <h1>Airport Runway Management Simulation</h1>
-    <p>Milestone 1: static airport scene</p>
+    <p>Milestone 2: aircraft graphics (stationary aircraft)</p>
   </header>
 
   <main>
-    <canvas id="scene" aria-label="Top-down airport layout"></canvas>
+    <canvas id="scene" aria-label="Top-down airport layout with aircraft"></canvas>
 
     <aside>
       <section>
+        <h2>Aircraft</h2>
+        <div class="row">
+          <select id="newType">
+            <option value="REGIONAL">Regional</option>
+            <option value="NARROW" selected>Narrow-body</option>
+            <option value="WIDE">Wide-body</option>
+          </select>
+          <button id="btnAdd">Add</button>
+          <button id="btnReset" class="ghost">Reset</button>
+        </div>
+        <p class="hint">Click an aircraft to select it. Drag to move it.</p>
+      </section>
+
+      <section id="selPanel">
+        <h2>Selected: <span id="selId">none</span></h2>
+        <div id="selControls" hidden>
+          <label class="slider">Heading <b id="hdgVal"></b>
+            <input type="range" id="hdg" min="0" max="359" step="1"></label>
+          <label class="slider">Scale <b id="sclVal"></b>
+            <input type="range" id="scl" min="0.4" max="1.6" step="0.05"></label>
+          <p class="readout" id="selPos"></p>
+          <button id="btnDelete" class="danger">Delete aircraft</button>
+        </div>
+      </section>
+
+      <section>
         <h2>View</h2>
+        <label><input type="checkbox" id="optIds" checked> Aircraft IDs</label>
+        <label><input type="checkbox" id="optBounds"> Bounding boxes</label>
         <label><input type="checkbox" id="optGrid"> Coordinate grid</label>
         <label><input type="checkbox" id="optZones" checked> Airport zones</label>
         <label><input type="checkbox" id="optLabels" checked> Labels</label>
-      </section>
-
-      <section>
-        <h2>Cursor (canvas coordinates)</h2>
         <p class="readout">x: <span id="mx">-</span> &nbsp; y: <span id="my">-</span></p>
-        <p class="hint">Origin (0,0) is the top-left corner. x grows right, y grows down.</p>
       </section>
 
       <section>
-        <h2>Legend</h2>
-        <ul class="legend">
-          <li><i style="background:#2f3237"></i>Runway</li>
-          <li><i style="background:#5b6068"></i>Taxiway</li>
-          <li><i style="background:#a9aeb5"></i>Apron / stands</li>
-          <li><i style="background:#d9dee5"></i>Terminal and buildings</li>
-          <li><i style="background:#f2c230"></i>Taxiway centreline and hold lines</li>
-        </ul>
+        <h2>Fleet</h2>
+        <table id="fleet"></table>
       </section>
     </aside>
   </main>
@@ -45,6 +62,7 @@
   <script src="js/config.js"></script>
   <script src="js/draw.js"></script>
   <script src="js/airport.js"></script>
+  <script src="js/aircraft.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

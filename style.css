@@ -23,3 +23,26 @@ label { display: block; margin: 6px 0; font-size: .9rem; cursor: pointer; }
 .legend i { width: 18px; height: 12px; border-radius: 2px; border: 1px solid #0006; }
 
 @media (max-width: 900px) { main { flex-direction: column; } aside { flex-basis: auto; width: 100%; } }
+
+/* ---- Milestone 2 additions ---- */
+.row { display: flex; gap: 6px; }
+select, button {
+  font: inherit; font-size: .85rem; color: #e6e9ed; background: #2a313a;
+  border: 1px solid #3a434f; border-radius: 4px; padding: 5px 9px; cursor: pointer;
+}
+select { flex: 1; min-width: 0; }
+button:hover { background: #343d48; }
+button.ghost { background: transparent; }
+button.danger { margin-top: 8px; width: 100%; color: #ff8787; }
+.slider { font-size: .85rem; }
+.slider b { float: right; font-weight: 500; color: #ffd43b; }
+.slider input { width: 100%; margin: 4px 0 6px; accent-color: #ffd43b; }
+#fleet { width: 100%; border-collapse: collapse; font-size: .78rem; }
+#fleet td { padding: 4px 3px; border-top: 1px solid #2a3038; }
+#fleet tr { cursor: pointer; }
+#fleet tr:hover { background: #232a33; }
+#fleet tr.sel { background: #3a3320; }
+#fleet td:last-child { color: #8f9aa6; text-align: right; }
+canvas.hover { cursor: grab; }
+canvas.drag { cursor: grabbing; }
+aside { max-height: calc(100vh - 90px); overflow-y: auto; }
