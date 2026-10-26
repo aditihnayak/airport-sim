@@ -12,11 +12,23 @@ let sandbox = createFleet();
 let selected = null, drag = null, counter = 1;
 let running = true, speedMult = 1;
 
+// Camera controls for viewing the airport
+const camera = {
+  zoom: 1,
+  minZoom: 1,
+  maxZoom: 2.5,
+  panX: 0,
+  panY: 0
+};
+
 const fleet = () => (mode === 'SIM' ? sim.aircraft : sandbox);
 
 /* High-DPI: one scale matrix maps the 1200x720 world onto the device pixels. */
 function resize() {
-  const dpr = window.devicePixelRatio || 1, cssW = canvas.clientWidth, s = (cssW * dpr) / CFG.W;
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth;
+  const s = (cssW * dpr) / CFG.W;
+
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssW * dpr * CFG.H / CFG.W);
   ctx.setTransform(s, 0, 0, s, 0, 0);
@@ -25,10 +37,21 @@ function resize() {
 
 function render() {
   ctx.clearRect(0, 0, CFG.W, CFG.H);
-  drawAirport(ctx, opts);                                   // layer 1: static scene
-  if (mode === 'SIM') drawRunwayStatus(ctx, sim.manager);   // layer 2: runway status colours
-  // layer 3: aircraft, low ones first so airborne aircraft are drawn on top
-  [...fleet()].sort((a, b) => a.altitude - b.altitude).forEach(a => a.draw(ctx, opts));
+
+  ctx.save();
+  ctx.translate(camera.panX, camera.panY);
+  ctx.translate(CFG.W / 2, CFG.H / 2);
+  ctx.scale(camera.zoom, camera.zoom);
+  ctx.translate(-CFG.W / 2, -CFG.H / 2);
+
+  drawAirport(ctx, opts);
+  if (mode === 'SIM') drawRunwayStatus(ctx, sim.manager);
+
+  [...fleet()]
+    .sort((a, b) => a.altitude - b.altitude)
+    .forEach(a => a.draw(ctx, opts));
+
+  ctx.restore();
 }
 
 /* ---- Animation loop ----
@@ -47,9 +70,16 @@ function frame(now) {
 }
 
 /* ---- Mouse helpers ---- */
-function toWorld(e) {                                       // screen pixels -> world units (inverse of the draw scale)
+function toWorld(e) {
   const r = canvas.getBoundingClientRect();
-  return { x: (e.clientX - r.left) * CFG.W / r.width, y: (e.clientY - r.top) * CFG.H / r.height };
+
+  const px = (e.clientX - r.left) * CFG.W / r.width;
+  const py = (e.clientY - r.top) * CFG.H / r.height;
+
+  return {
+    x: (px - camera.panX - CFG.W / 2) / camera.zoom + CFG.W / 2,
+    y: (py - camera.panY - CFG.H / 2) / camera.zoom + CFG.H / 2
+  };
 }
 function pick(x, y) {
   const f = fleet();
@@ -140,6 +170,52 @@ canvas.addEventListener('mousemove', e => {
   $('mx').textContent = Math.round(p.x); $('my').textContent = Math.round(p.y);
   if (drag && selected) { selected.x = p.x - drag.dx; selected.y = p.y - drag.dy; }
   else canvas.className = pick(p.x, p.y) ? 'hover' : '';
+});
+
+// Camera zoom and pan
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+
+  const oldZoom = camera.zoom;
+  const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+  const newZoom = Math.max(
+    camera.minZoom,
+    Math.min(camera.maxZoom, oldZoom * factor)
+  );
+
+  const rect = canvas.getBoundingClientRect();
+  const px = (e.clientX - rect.left) * CFG.W / rect.width;
+  const py = (e.clientY - rect.top) * CFG.H / rect.height;
+
+  camera.panX = px - (px - camera.panX) * (newZoom / oldZoom);
+  camera.panY = py - (py - camera.panY) * (newZoom / oldZoom);
+  camera.zoom = newZoom;
+}, { passive: false });
+
+let panDrag = null;
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 2) {
+    panDrag = { x: e.clientX, y: e.clientY };
+    e.preventDefault();
+  }
+});
+
+window.addEventListener('mousemove', e => {
+  if (!panDrag) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const scale = CFG.W / rect.width;
+
+  camera.panX += (e.clientX - panDrag.x) * scale;
+  camera.panY += (e.clientY - panDrag.y) * scale;
+  panDrag = { x: e.clientX, y: e.clientY };
+});
+
+window.addEventListener('mouseup', e => {
+  if (e.button === 2) panDrag = null;
 });
 
 window.addEventListener('resize', resize);
